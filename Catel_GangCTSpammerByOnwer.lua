@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local oldIntro = PlayerGui:FindFirstChild("CelestialSyndicateIntro")
+local oldIntro = PlayerGui:FindFirstChild("CatelGangIntro")
 if oldIntro then
     oldIntro:Destroy()
 end
@@ -642,7 +642,7 @@ speedStrk.Color = DarkBorder
 local start = Instance.new("TextButton", main)
 start.Size = UDim2.new(1, -40, 0, 55)
 start.Position = UDim2.new(0, 20, 0, 290)
-start.Text = "START CELESTIAL SPAMMER MV1"
+start.Text = "START CATEL GANG SPAMMER"
 start.BackgroundColor3 = PitchBlack
 start.TextColor3 = PureWhite
 start.Font = Enum.Font.GothamBlack
