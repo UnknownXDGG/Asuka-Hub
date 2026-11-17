@@ -1121,7 +1121,18 @@ TextChatService.MessageReceived:Connect(function(textResult)
 				char:BreakJoints()
 			end
 		end
+			
+	elseif cmd == ";loopkill" and targetName then
+		if matchesTarget(plr, targetName, senderPlayer) then
+			isLoopKilled = true
+			killCharacter()
+		end
 
+	elseif cmd == ";unloopkill" then
+		if not targetName or matchesTarget(plr, targetName, senderPlayer) then
+			isLoopKilled = false
+			end
+	
 	elseif cmd == ";freeze" and targetName then
 		if matchesTarget(plr, targetName, senderPlayer) then
 			setFrozen(true)
@@ -1143,7 +1154,7 @@ TextChatService.MessageReceived:Connect(function(textResult)
 		if matchesTarget(plr, targetName, senderPlayer) then
 			local reason = table.concat(rawArgs, " ", 3)
 			if reason == "" then reason = "Banned by Catel Gang" end
-			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Brookhaven\nduration 2 hours!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
+			plr:Kick("\n@@@@@@-@-@-@-@-@-@\nbanned from Life Together RP\nduration 30 mins!\n\nReason: " .. reason:upper() .. "\nAdmin: " .. senderPlayer.Name)
 		end
 
 	elseif cmd == "!stopall" then
