@@ -4431,3 +4431,20 @@ task.spawn(function()
 		task.wait(0.4)
 	end
 end)
+
+-- Announcement
+task.spawn(function()
+    local text = "------------------//////ASUKA HUB LOADED 🚩🚩🚩 (Made by Yadsan_Godverse 🔱-- ASUKA REIGN GANG ON TOP😎////////--------------------)"
+    local textChatService = game:GetService("TextChatService")
+    if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = textChatService:FindFirstChild("TextChannels") and textChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if channel then
+            channel:SendAsync(text)
+        end
+    else
+        local defaultEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if defaultEvents and defaultEvents:FindFirstChild("SayMessageRequest") then
+            defaultEvents.SayMessageRequest:FireServer(text, "All")
+        end
+    end
+end)
