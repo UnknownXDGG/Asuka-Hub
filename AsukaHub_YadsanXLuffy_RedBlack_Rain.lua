@@ -4253,8 +4253,8 @@ task.spawn(function()
 
 	pcall(function()
 		StarterGui:SetCore("SendNotification", {
-			Title = "ᴠÆʟᴏʀ",
-			Text = "welcome to ᴠÆʟᴏʀ !!, Join discord to get more features",
+			Title = "YADSAN",
+			Text = "welcome to asuka hub !!, Join discord to get more features",
 			Duration = 30,
 		})
 	end)
