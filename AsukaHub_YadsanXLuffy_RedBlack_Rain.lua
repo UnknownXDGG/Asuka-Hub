@@ -3771,6 +3771,13 @@ Universal:CreateScript({
 })
 
 Universal:CreateScript({
+	Name = "ASUKA ANTIAFK",
+	Callback = function()
+		RunUrl("https://raw.githubusercontent.com/UnknownXDGG/Asuka-Hub/refs/heads/main/AsukaReign_AntiafkRed.lua")
+	end,
+})
+
+Universal:CreateScript({
 	Name = "SKY AND VOID FALL",
 	Callback = function()
 		RunUrl("https://pastefy.app/R19boYKQ/raw")
